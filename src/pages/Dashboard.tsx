@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BarChart3, Brain, Code, MessageSquare, Trophy, ArrowRight, Clock, Star, TrendingUp, Zap } from "lucide-react";
+import { BarChart3, Brain, Bot, Code, MessageSquare, Trophy, ArrowRight, Clock, Star, TrendingUp, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -68,7 +68,8 @@ const Dashboard = () => (
               {[
                 { to: "/interview/hr", icon: MessageSquare, title: "HR Interview", desc: "Behavioral questions", gradient: "gradient-primary" },
                 { to: "/interview/technical", icon: Brain, title: "Technical", desc: "MCQ & system design", gradient: "gradient-accent" },
-                { to: "/coding", icon: Code, title: "Coding", desc: "Solve problems", gradient: "gradient-primary" },
+              { to: "/coding", icon: Code, title: "Coding", desc: "Solve problems", gradient: "gradient-primary" },
+              { to: "/interview/ai", icon: Bot, title: "AI 1-on-1", desc: "Live AI interview", gradient: "gradient-accent" },
               ].map((action) => (
                 <Link key={action.to} to={action.to} className="group p-5 rounded-xl border border-border bg-card hover:shadow-glow hover:border-primary/30 transition-all duration-300">
                   <div className={`${action.gradient} rounded-lg p-2.5 w-fit mb-3 group-hover:scale-110 transition-transform`}>
