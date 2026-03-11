@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BarChart3, Brain, Code, MessageSquare, Trophy, ArrowRight, Clock, Star, TrendingUp, Zap } from "lucide-react";
+import { BarChart3, Brain, Bot, Code, MessageSquare, Trophy, ArrowRight, Clock, Star, TrendingUp, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
