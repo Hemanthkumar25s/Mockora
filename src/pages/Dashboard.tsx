@@ -68,7 +68,8 @@ const Dashboard = () => (
               {[
                 { to: "/interview/hr", icon: MessageSquare, title: "HR Interview", desc: "Behavioral questions", gradient: "gradient-primary" },
                 { to: "/interview/technical", icon: Brain, title: "Technical", desc: "MCQ & system design", gradient: "gradient-accent" },
-                { to: "/coding", icon: Code, title: "Coding", desc: "Solve problems", gradient: "gradient-primary" },
+              { to: "/coding", icon: Code, title: "Coding", desc: "Solve problems", gradient: "gradient-primary" },
+              { to: "/interview/ai", icon: Bot, title: "AI 1-on-1", desc: "Live AI interview", gradient: "gradient-accent" },
               ].map((action) => (
                 <Link key={action.to} to={action.to} className="group p-5 rounded-xl border border-border bg-card hover:shadow-glow hover:border-primary/30 transition-all duration-300">
                   <div className={`${action.gradient} rounded-lg p-2.5 w-fit mb-3 group-hover:scale-110 transition-transform`}>
