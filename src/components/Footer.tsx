@@ -10,7 +10,7 @@ const Footer = () => (
             <div className="gradient-primary rounded-lg p-1.5">
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
-            InterviewAce
+            Mockora
           </Link>
           <p className="text-sm text-muted-foreground">
             AI-powered mock interviews to land your dream job.
@@ -42,7 +42,7 @@ const Footer = () => (
         </div>
       </div>
       <div className="mt-8 pt-8 border-t border-border text-center text-xs text-muted-foreground">
-        © 2026 InterviewAce. All rights reserved.
+        © 2026 Mockora. All rights reserved.
       </div>
     </div>
   </footer>

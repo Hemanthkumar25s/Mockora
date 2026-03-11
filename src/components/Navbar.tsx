@@ -21,7 +21,7 @@ const Navbar = () => {
           <div className="gradient-primary rounded-lg p-1.5">
             <Zap className="h-5 w-5 text-primary-foreground" />
           </div>
-          InterviewAce
+          Mockora
         </Link>
 
         {/* Desktop */}
