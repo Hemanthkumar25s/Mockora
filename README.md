@@ -1,73 +1,104 @@
-# Welcome to your Lovable project
+# Mockora – AI Powered Mock Interview Platform
 
-## Project info
+Mockora is an intelligent mock interview platform designed to help students and job seekers prepare for technical and behavioral interviews. The platform simulates real interview scenarios and provides a structured environment where users can practice answering questions, improve their confidence, and enhance their interview skills. The goal of Mockora is to make interview preparation easier by allowing users to experience realistic interview sessions and practice frequently asked questions in a simple and interactive interface.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
+- User authentication (Signup and Login)
+- Mock interview session simulation
+- Technical and HR interview practice questions
+- User dashboard to manage interview sessions
+- Simple and responsive user interface
+- Backend API for managing interview data
+- Secure database storage for users and sessions
 
-## How can I edit this code?
+## Tech Stack
+Frontend  
+- HTML  
+- CSS  
+- JavaScript  
 
-There are several ways of editing your application.
+Backend  
+- Node.js  
+- Express.js  
 
-**Use Lovable**
+Database  
+- MongoDB  
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+Tools  
+- Git  
+- GitHub  
+- REST APIs  
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+## Project Structure
+```
+Mockora
+│
+├── client
+│   ├── css
+│   ├── js
+│   └── index.html
+│
+├── server
+│   ├── routes
+│   ├── controllers
+│   └── server.js
+│
+├── models
+│
+├── package.json
+└── README.md
 ```
 
-**Edit a file directly in GitHub**
+## Installation
+Clone the repository
+```
+git clone https://github.com/Hemanthkumar25s/Mockora.git
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Move into the project folder
+```
+cd Mockora
+```
 
-**Use GitHub Codespaces**
+Install dependencies
+```
+npm install
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Run the server
+```
+npm start
+```
 
-## What technologies are used for this project?
+Open in browser
+```
+http://localhost:3000
+```
 
-This project is built with:
+## Usage
+1. Create a new account on the platform  
+2. Login to access the dashboard  
+3. Choose the interview category or topic  
+4. Start a mock interview session  
+5. Practice answering questions and improve interview performance  
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Future Improvements
+- AI based answer evaluation  
+- Voice based interview interaction  
+- Resume based question generation  
+- Interview performance analytics  
+- Video interview simulation  
+- Personalized interview recommendations  
 
-## How can I deploy this project?
+## Author
+Hemanth Kumar  
+B.E. Information Science and Engineering  
+JSS Academy of Technical Education  
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+GitHub:  
+https://github.com/Hemanthkumar25s
+Project:
+https://interview-ace-ai-67.lovable.app
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## License
+This project is open source and available under the MIT License.
