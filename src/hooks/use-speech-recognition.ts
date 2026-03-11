@@ -14,11 +14,20 @@ declare global {
   toggleListening: () => void;
 }
 
+interface UseSpeechReturn {
+  isListening: boolean;
+  isSupported: boolean;
+  transcript: string;
+  startListening: () => void;
+  stopListening: () => void;
+  toggleListening: () => void;
+}
+
 export const useSpeechRecognition = (
   onTranscript: (text: string) => void
-): SpeechRecognitionHook => {
+): UseSpeechReturn => {
   const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   const isSupported =
     typeof window !== "undefined" &&
