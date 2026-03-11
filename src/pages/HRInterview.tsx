@@ -55,6 +55,7 @@ const HRInterview = () => {
 
   const handleSubmit = () => {
     if (!answer.trim()) return;
+    stopListening();
     setFeedback(generateFeedback(answer));
     setSubmitted(true);
   };
