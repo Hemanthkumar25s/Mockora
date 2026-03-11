@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { MessageSquare, RotateCcw, Send, CheckCircle, AlertCircle, Lightbulb } from "lucide-react";
+import { MessageSquare, RotateCcw, Send, CheckCircle, AlertCircle, Lightbulb, Mic, MicOff } from "lucide-react";
 
 const hrQuestions = [
   "Tell me about yourself and your background.",
