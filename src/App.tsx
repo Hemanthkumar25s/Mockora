@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import HRInterview from "./pages/HRInterview";
 import TechnicalInterview from "./pages/TechnicalInterview";
 import CodingPractice from "./pages/CodingPractice";
+import AIInterview from "./pages/AIInterview";
 import Features from "./pages/Features";
 import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
