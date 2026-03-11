@@ -419,20 +419,32 @@ const AIInterview = () => {
 
           {/* Input */}
           {!report && (
-            <div className="flex gap-3 items-end">
+            <div className="flex gap-2 items-end">
               <Textarea
-                placeholder="Type your answer..."
+                placeholder={isListening ? "Listening..." : "Type your answer or use the mic..."}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isTyping}
-                className="min-h-[60px] max-h-[120px] resize-none flex-1"
+                className={`min-h-[60px] max-h-[120px] resize-none flex-1 transition-colors ${isListening ? "border-primary ring-2 ring-primary/20" : ""}`}
               />
+              {isSupported && (
+                <Button
+                  variant={isListening ? "destructive" : "outline"}
+                  size="icon"
+                  className={`h-[60px] w-[60px] shrink-0 ${isListening ? "animate-pulse" : ""}`}
+                  onClick={toggleListening}
+                  disabled={isTyping}
+                  title={isListening ? "Stop recording" : "Start voice input"}
+                >
+                  {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                </Button>
+              )}
               <Button
                 variant="hero"
                 size="icon"
                 className="h-[60px] w-[60px] shrink-0"
-                onClick={handleSend}
+                onClick={() => { stopListening(); handleSend(); }}
                 disabled={!input.trim() || isTyping}
               >
                 <Send className="h-5 w-5" />
