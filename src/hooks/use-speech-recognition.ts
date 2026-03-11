@@ -1,6 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
-interface SpeechRecognitionHook {
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+}
   isListening: boolean;
   isSupported: boolean;
   transcript: string;
