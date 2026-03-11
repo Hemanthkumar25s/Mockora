@@ -144,6 +144,13 @@ const AIInterview = () => {
   const [report, setReport] = useState<FinalReport | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const handleVoiceTranscript = useCallback((text: string) => {
+    setInput((prev) => (prev ? prev + " " + text : text));
+  }, []);
+
+  const { isListening, isSupported, toggleListening, stopListening } =
+    useSpeechRecognition(handleVoiceTranscript);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
