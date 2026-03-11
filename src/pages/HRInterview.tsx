@@ -46,6 +46,13 @@ const HRInterview = () => {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
+  const handleVoiceTranscript = useCallback((text: string) => {
+    setAnswer((prev) => (prev ? prev + " " + text : text));
+  }, []);
+
+  const { isListening, isSupported, toggleListening, stopListening } =
+    useSpeechRecognition(handleVoiceTranscript);
+
   const handleSubmit = () => {
     if (!answer.trim()) return;
     setFeedback(generateFeedback(answer));
