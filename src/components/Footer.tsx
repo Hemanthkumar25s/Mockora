@@ -42,7 +42,7 @@ const Footer = () => (
         </div>
       </div>
       <div className="mt-8 pt-8 border-t border-border text-center text-xs text-muted-foreground">
-        © 2026 InterviewAce. All rights reserved.
+        © 2026 Mockora. All rights reserved.
       </div>
     </div>
   </footer>

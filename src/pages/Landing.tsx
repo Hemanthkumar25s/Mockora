@@ -229,7 +229,7 @@ const Landing = () => (
               Ready to Ace Your Next Interview?
             </h2>
             <p className="text-primary-foreground/70 text-lg mb-8 max-w-xl mx-auto">
-              Join thousands of candidates who landed their dream jobs with InterviewAce.
+              Join thousands of candidates who landed their dream jobs with Mockora.
             </p>
             <Button variant="hero" size="xl" asChild>
               <Link to="/signup">
