@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { MessageSquare, RotateCcw, Send, CheckCircle, AlertCircle, Lightbulb } from "lucide-react";
+import { MessageSquare, RotateCcw, Send, CheckCircle, AlertCircle, Lightbulb, Mic, MicOff } from "lucide-react";
 
 const hrQuestions = [
   "Tell me about yourself and your background.",
@@ -45,8 +46,16 @@ const HRInterview = () => {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
+  const handleVoiceTranscript = useCallback((text: string) => {
+    setAnswer((prev) => (prev ? prev + " " + text : text));
+  }, []);
+
+  const { isListening, isSupported, toggleListening, stopListening } =
+    useSpeechRecognition(handleVoiceTranscript);
+
   const handleSubmit = () => {
     if (!answer.trim()) return;
+    stopListening();
     setFeedback(generateFeedback(answer));
     setSubmitted(true);
   };
@@ -88,12 +97,23 @@ const HRInterview = () => {
             {/* Answer */}
             <div className="mb-6">
               <Textarea
-                placeholder="Type your answer here..."
+                placeholder={isListening ? "Listening..." : "Type your answer or use the mic..."}
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
                 disabled={submitted}
-                className="min-h-[150px] resize-none"
+                className={`min-h-[150px] resize-none ${isListening ? "border-primary ring-2 ring-primary/20" : ""}`}
               />
+              {isSupported && !submitted && (
+                <Button
+                  variant={isListening ? "destructive" : "outline"}
+                  size="sm"
+                  className={`mt-3 ${isListening ? "animate-pulse" : ""}`}
+                  onClick={toggleListening}
+                >
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  {isListening ? "Stop Recording" : "Voice Input"}
+                </Button>
+              )}
             </div>
 
             {!submitted ? (

@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -142,6 +143,13 @@ const AIInterview = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [report, setReport] = useState<FinalReport | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const handleVoiceTranscript = useCallback((text: string) => {
+    setInput((prev) => (prev ? prev + " " + text : text));
+  }, []);
+
+  const { isListening, isSupported, toggleListening, stopListening } =
+    useSpeechRecognition(handleVoiceTranscript);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -411,20 +419,32 @@ const AIInterview = () => {
 
           {/* Input */}
           {!report && (
-            <div className="flex gap-3 items-end">
+            <div className="flex gap-2 items-end">
               <Textarea
-                placeholder="Type your answer..."
+                placeholder={isListening ? "Listening..." : "Type your answer or use the mic..."}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isTyping}
-                className="min-h-[60px] max-h-[120px] resize-none flex-1"
+                className={`min-h-[60px] max-h-[120px] resize-none flex-1 transition-colors ${isListening ? "border-primary ring-2 ring-primary/20" : ""}`}
               />
+              {isSupported && (
+                <Button
+                  variant={isListening ? "destructive" : "outline"}
+                  size="icon"
+                  className={`h-[60px] w-[60px] shrink-0 ${isListening ? "animate-pulse" : ""}`}
+                  onClick={toggleListening}
+                  disabled={isTyping}
+                  title={isListening ? "Stop recording" : "Start voice input"}
+                >
+                  {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                </Button>
+              )}
               <Button
                 variant="hero"
                 size="icon"
                 className="h-[60px] w-[60px] shrink-0"
-                onClick={handleSend}
+                onClick={() => { stopListening(); handleSend(); }}
                 disabled={!input.trim() || isTyping}
               >
                 <Send className="h-5 w-5" />
