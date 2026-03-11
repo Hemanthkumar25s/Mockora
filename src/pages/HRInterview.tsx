@@ -97,12 +97,23 @@ const HRInterview = () => {
             {/* Answer */}
             <div className="mb-6">
               <Textarea
-                placeholder="Type your answer here..."
+                placeholder={isListening ? "Listening..." : "Type your answer or use the mic..."}
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
                 disabled={submitted}
-                className="min-h-[150px] resize-none"
+                className={`min-h-[150px] resize-none ${isListening ? "border-primary ring-2 ring-primary/20" : ""}`}
               />
+              {isSupported && !submitted && (
+                <Button
+                  variant={isListening ? "destructive" : "outline"}
+                  size="sm"
+                  className={`mt-3 ${isListening ? "animate-pulse" : ""}`}
+                  onClick={toggleListening}
+                >
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  {isListening ? "Stop Recording" : "Voice Input"}
+                </Button>
+              )}
             </div>
 
             {!submitted ? (
