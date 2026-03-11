@@ -6,13 +6,6 @@ declare global {
     webkitSpeechRecognition: typeof SpeechRecognition;
   }
 }
-  isListening: boolean;
-  isSupported: boolean;
-  transcript: string;
-  startListening: () => void;
-  stopListening: () => void;
-  toggleListening: () => void;
-}
 
 interface UseSpeechReturn {
   isListening: boolean;
