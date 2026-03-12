@@ -1,22 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { useAuth } from "@/hooks/use-auth";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { supabase } from "@/integrations/supabase/client";
 import {
-  Bot,
-  User,
-  Send,
-  RotateCcw,
-  Mic,
-  MicOff,
-  CheckCircle,
-  AlertCircle,
-  Lightbulb,
-  Trophy,
-  ArrowRight,
+  Bot, User, Send, RotateCcw, Mic, MicOff, CheckCircle, AlertCircle, Lightbulb, Trophy, ArrowRight, Phone, PhoneOff,
 } from "lucide-react";
 
 type Role = "hr" | "technical" | "behavioral";
@@ -38,11 +30,10 @@ interface FinalReport {
 const roleConfig: Record<Role, { label: string; greeting: string; questions: string[] }> = {
   hr: {
     label: "HR Interview",
-    greeting:
-      "Hello! I'm your AI interviewer for today's HR round. I'll be asking you a series of behavioral and situational questions. Take your time, and answer as you would in a real interview. Let's begin!",
+    greeting: "Hello! I'm your AI interviewer for today's HR round. I'll be asking you behavioral and situational questions. Let's begin!",
     questions: [
       "Tell me about yourself. Walk me through your background and what brings you here today.",
-      "What would you say is your greatest professional strength, and can you give me an example of how you've used it?",
+      "What would you say is your greatest professional strength, and can you give me an example?",
       "Describe a time when you faced a significant challenge at work. How did you handle it?",
       "Why are you interested in this role and our company specifically?",
       "Where do you see yourself professionally in the next 3-5 years?",
@@ -52,89 +43,57 @@ const roleConfig: Record<Role, { label: string; greeting: string; questions: str
   },
   technical: {
     label: "Technical Interview",
-    greeting:
-      "Hi there! I'm your AI technical interviewer. I'll ask you conceptual and problem-solving questions to assess your technical knowledge. Think out loud — I want to understand your reasoning process. Ready? Let's start!",
+    greeting: "Hi there! I'm your AI technical interviewer. Think out loud — I want to understand your reasoning. Ready? Let's start!",
     questions: [
-      "Can you explain the difference between REST and GraphQL? When would you choose one over the other?",
-      "Walk me through how you would design a URL shortener service like bit.ly. What components would you need?",
-      "What is the difference between SQL and NoSQL databases? Give me a scenario where each would be the better choice.",
+      "Can you explain the difference between REST and GraphQL?",
+      "Walk me through how you would design a URL shortener service.",
+      "What is the difference between SQL and NoSQL databases?",
       "Explain the concept of time complexity. What's the difference between O(n) and O(n log n)?",
-      "How does HTTPS work? Can you walk me through the TLS handshake at a high level?",
-      "What are microservices, and what are the trade-offs compared to a monolithic architecture?",
-      "Describe how you would optimize a web application that has slow page load times.",
+      "How does HTTPS work? Walk me through the TLS handshake.",
+      "What are microservices, and what are the trade-offs vs monolithic architecture?",
+      "Describe how you would optimize a slow web application.",
     ],
   },
   behavioral: {
     label: "Behavioral Interview",
-    greeting:
-      "Welcome! I'm your AI behavioral interviewer. I'll be focusing on real-life situations from your experience using the STAR method (Situation, Task, Action, Result). Be specific and honest. Let's get started!",
+    greeting: "Welcome! I'll focus on real-life situations using the STAR method. Be specific and honest. Let's get started!",
     questions: [
       "Tell me about a time you took initiative on a project without being asked.",
-      "Describe a situation where you had to learn something new quickly to complete a task.",
-      "Give me an example of a time you had to work with a difficult team member. What did you do?",
-      "Tell me about a time you failed at something. What did you learn from it?",
-      "Describe a situation where you had to make a decision with incomplete information.",
-      "Give me an example of when you went above and beyond what was expected of you.",
-      "Tell me about a time you received critical feedback. How did you respond?",
+      "Describe a situation where you had to learn something new quickly.",
+      "Give an example of working with a difficult team member.",
+      "Tell me about a time you failed. What did you learn?",
+      "Describe a situation where you made a decision with incomplete information.",
+      "Give an example of going above and beyond expectations.",
+      "Tell me about receiving critical feedback. How did you respond?",
     ],
   },
 };
 
-const evaluateAnswer = (answer: string, questionIndex: number) => {
+const evaluateAnswer = (answer: string) => {
   const words = answer.trim().split(/\s+/).length;
   const hasExample = /for example|for instance|such as|when i|i once|at my/i.test(answer);
   const hasStructure = /first|then|finally|result|outcome|because/i.test(answer);
-  let score = Math.min(95, Math.max(25, words * 2.5 + (hasExample ? 15 : 0) + (hasStructure ? 10 : 0) + Math.floor(Math.random() * 10)));
-  return Math.round(score);
+  return Math.round(Math.min(95, Math.max(25, words * 2.5 + (hasExample ? 15 : 0) + (hasStructure ? 10 : 0) + Math.floor(Math.random() * 10))));
 };
 
-const generateFollowUp = (answer: string, score: number): string => {
-  if (score >= 80) {
-    const responses = [
-      "Great answer! I liked how specific you were. Let me move on to the next question.",
-      "Excellent response. Your use of concrete examples really strengthened your answer. Next question:",
-      "Very well articulated. That's exactly the kind of depth interviewers look for. Moving on:",
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
-  }
-  if (score >= 55) {
-    const responses = [
-      "Good start. Try to include more specific examples next time. Let's continue:",
-      "Decent answer, but quantifiable results would make it stronger. Here's the next one:",
-      "Not bad! Consider using the STAR framework for more structure. Next question:",
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
-  }
-  const responses = [
-    "I'd encourage you to elaborate more. Specific examples make a big difference. Let's try another:",
-    "That was a bit brief — interviewers want to see depth and real scenarios. Next question:",
-    "Try to give more detail in your response. Let's move to the next one:",
-  ];
-  return responses[Math.floor(Math.random() * responses.length)];
+const generateFollowUp = (score: number): string => {
+  if (score >= 80) return ["Great answer! Very specific. Moving on:", "Excellent response with concrete examples. Next:", "Well articulated. Next question:"][Math.floor(Math.random() * 3)];
+  if (score >= 55) return ["Good start. More examples would help. Continuing:", "Decent, but quantifiable results would strengthen it. Next:", "Not bad! Try the STAR framework. Next:"][Math.floor(Math.random() * 3)];
+  return ["I'd encourage more detail. Let's try another:", "That was brief — interviewers want depth. Next:", "Try more detail next time. Moving on:"][Math.floor(Math.random() * 3)];
 };
 
 const generateReport = (scores: number[]): FinalReport => {
   const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
   return {
     overallScore: avg,
-    strengths: avg >= 70
-      ? ["Clear communication style", "Good use of real examples", "Confident delivery"]
-      : avg >= 50
-      ? ["Willingness to answer all questions", "Basic understanding shown"]
-      : ["Completed the full interview session"],
-    improvements: avg >= 70
-      ? ["Add more quantifiable achievements", "Vary your sentence structure"]
-      : avg >= 50
-      ? ["Use the STAR method for better structure", "Include specific metrics and outcomes", "Elaborate with more detail"]
-      : ["Practice answering with concrete examples", "Use structured frameworks like STAR", "Aim for 2-3 minute responses", "Research common interview questions"],
-    tip:
-      avg >= 70
-        ? "You're interview-ready! Focus on tailoring answers to each company's values."
-        : "Practice daily with a timer. Record yourself and review your responses for clarity and depth.",
+    strengths: avg >= 70 ? ["Clear communication", "Good examples", "Confident delivery"] : avg >= 50 ? ["Willingness to answer", "Basic understanding"] : ["Completed the session"],
+    improvements: avg >= 70 ? ["Add quantifiable achievements", "Vary sentence structure"] : avg >= 50 ? ["Use STAR method", "Include metrics", "Elaborate more"] : ["Practice with examples", "Use STAR framework", "Aim for 2-3 min responses"],
+    tip: avg >= 70 ? "You're interview-ready! Tailor answers to each company." : "Practice daily. Record and review for clarity.",
   };
 };
 
 const AIInterview = () => {
+  const { user } = useAuth();
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -142,69 +101,131 @@ const AIInterview = () => {
   const [scores, setScores] = useState<number[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [report, setReport] = useState<FinalReport | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [vapiCallActive, setVapiCallActive] = useState(false);
+  const [vapiLoading, setVapiLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const handleVoiceTranscript = useCallback((text: string) => {
     setInput((prev) => (prev ? prev + " " + text : text));
   }, []);
 
-  const { isListening, isSupported, toggleListening, stopListening } =
-    useSpeechRecognition(handleVoiceTranscript);
+  const { isListening, isSupported, toggleListening, stopListening } = useSpeechRecognition(handleVoiceTranscript);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const startInterview = (role: Role) => {
+  const createSession = async (role: Role) => {
+    if (!user) return null;
+    const { data } = await supabase
+      .from("interview_sessions")
+      .insert({ user_id: user.id, interview_type: role })
+      .select("id")
+      .single();
+    return data?.id ?? null;
+  };
+
+  const saveResponse = async (sid: string, qIndex: number, qText: string, answer: string, score: number, feedback: string) => {
+    await supabase.from("user_responses").insert({
+      session_id: sid,
+      question_index: qIndex,
+      question_text: qText,
+      answer_text: answer,
+      score,
+      ai_feedback: feedback,
+    });
+  };
+
+  const completeSession = async (sid: string, finalReport: FinalReport) => {
+    await supabase
+      .from("interview_sessions")
+      .update({
+        overall_score: finalReport.overallScore,
+        strengths: finalReport.strengths,
+        improvements: finalReport.improvements,
+        tip: finalReport.tip,
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", sid);
+  };
+
+  const startInterview = async (role: Role) => {
     setSelectedRole(role);
     const config = roleConfig[role];
     const greeting: Message = { id: 1, sender: "ai", text: config.greeting, timestamp: new Date() };
     setMessages([greeting]);
     setIsTyping(true);
+
+    const sid = await createSession(role);
+    if (sid) setSessionId(sid);
+
     setTimeout(() => {
-      const firstQ: Message = { id: 2, sender: "ai", text: config.questions[0], timestamp: new Date() };
-      setMessages((prev) => [...prev, firstQ]);
+      setMessages((prev) => [...prev, { id: 2, sender: "ai", text: config.questions[0], timestamp: new Date() }]);
       setIsTyping(false);
     }, 1500);
   };
 
-  const handleSend = () => {
+  const startVapiCall = async (role: Role) => {
+    setVapiLoading(true);
+    try {
+      const config = roleConfig[role];
+      const { data, error } = await supabase.functions.invoke("vapi-session", {
+        body: {
+          assistantConfig: {
+            systemPrompt: `You are a professional ${config.label} interviewer. Ask these questions one by one: ${config.questions.join(" | ")}. Wait for the candidate's response after each question. Provide brief feedback then move on. At the end, give an overall score out of 100.`,
+            firstMessage: config.greeting,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.webCallUrl) {
+        window.open(data.webCallUrl, "_blank", "width=400,height=600");
+        setVapiCallActive(true);
+      }
+    } catch (err) {
+      console.error("Vapi error:", err);
+    } finally {
+      setVapiLoading(false);
+    }
+  };
+
+  const handleSend = async () => {
     if (!input.trim() || !selectedRole || isTyping) return;
 
     const userMsg: Message = { id: Date.now(), sender: "user", text: input.trim(), timestamp: new Date() };
     setMessages((prev) => [...prev, userMsg]);
 
-    const score = evaluateAnswer(input, currentQ);
+    const score = evaluateAnswer(input);
     const newScores = [...scores, score];
     setScores(newScores);
+    const answerText = input.trim();
     setInput("");
     setIsTyping(true);
 
     const config = roleConfig[selectedRole];
     const nextIndex = currentQ + 1;
+    const followUp = generateFollowUp(score);
+
+    // Save to DB
+    if (sessionId) {
+      saveResponse(sessionId, currentQ, config.questions[currentQ], answerText, score, followUp);
+    }
 
     setTimeout(() => {
       if (nextIndex < config.questions.length) {
-        const followUp = generateFollowUp(input, score);
-        const aiReply: Message = { id: Date.now() + 1, sender: "ai", text: followUp, timestamp: new Date() };
-        setMessages((prev) => [...prev, aiReply]);
-
+        setMessages((prev) => [...prev, { id: Date.now() + 1, sender: "ai", text: followUp, timestamp: new Date() }]);
         setTimeout(() => {
-          const nextQ: Message = { id: Date.now() + 2, sender: "ai", text: config.questions[nextIndex], timestamp: new Date() };
-          setMessages((prev) => [...prev, nextQ]);
+          setMessages((prev) => [...prev, { id: Date.now() + 2, sender: "ai", text: config.questions[nextIndex], timestamp: new Date() }]);
           setCurrentQ(nextIndex);
           setIsTyping(false);
         }, 1200);
       } else {
-        const closing: Message = {
-          id: Date.now() + 1,
-          sender: "ai",
-          text: "That's all my questions! Thank you for your time. Let me compile your interview report...",
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, closing]);
+        setMessages((prev) => [...prev, { id: Date.now() + 1, sender: "ai", text: "That's all! Let me compile your report...", timestamp: new Date() }]);
         setTimeout(() => {
-          setReport(generateReport(newScores));
+          const finalReport = generateReport(newScores);
+          setReport(finalReport);
+          if (sessionId) completeSession(sessionId, finalReport);
           setIsTyping(false);
         }, 2000);
       }
@@ -219,16 +240,14 @@ const AIInterview = () => {
     setScores([]);
     setReport(null);
     setIsTyping(false);
+    setSessionId(null);
+    setVapiCallActive(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  // Role selection screen
   if (!selectedRole) {
     return (
       <div className="min-h-screen bg-background">
@@ -241,29 +260,41 @@ const AIInterview = () => {
               </div>
               <h1 className="text-3xl md:text-4xl font-display font-bold mb-3">AI 1-on-1 Interview</h1>
               <p className="text-muted-foreground max-w-lg mx-auto">
-                Experience a realistic interview simulation with our AI interviewer. Choose your interview type to begin.
+                Choose text chat or voice AI interview. Select your type to begin.
               </p>
             </motion.div>
-
             <div className="grid sm:grid-cols-3 gap-5">
               {(Object.entries(roleConfig) as [Role, typeof roleConfig.hr][]).map(([key, config], i) => (
-                <motion.button
+                <motion.div
                   key={key}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 }}
-                  onClick={() => startInterview(key)}
-                  className="group p-6 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-glow transition-all duration-300 text-left"
+                  className="group p-6 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-glow transition-all duration-300"
                 >
                   <div className="gradient-primary rounded-xl p-2.5 w-fit mb-4 group-hover:scale-110 transition-transform">
                     <Bot className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <h3 className="font-display font-semibold text-lg mb-2">{config.label}</h3>
-                  <p className="text-sm text-muted-foreground">{config.questions.length} questions • ~15 min</p>
-                  <div className="flex items-center gap-1 mt-4 text-sm text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                    Start Interview <ArrowRight className="h-4 w-4" />
+                  <p className="text-sm text-muted-foreground mb-4">{config.questions.length} questions • ~15 min</p>
+                  <div className="flex flex-col gap-2">
+                    <Button variant="hero" size="sm" className="w-full" onClick={() => startInterview(key)}>
+                      <Send className="h-4 w-4 mr-1" /> Text Chat
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setSelectedRole(key);
+                        startVapiCall(key);
+                      }}
+                      disabled={vapiLoading}
+                    >
+                      <Phone className="h-4 w-4 mr-1" /> {vapiLoading ? "Connecting..." : "Voice AI"}
+                    </Button>
                   </div>
-                </motion.button>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -278,63 +309,47 @@ const AIInterview = () => {
       <Navbar />
       <div className="flex-1 pt-20 pb-4 flex flex-col">
         <div className="container mx-auto px-4 max-w-3xl flex-1 flex flex-col">
-          {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="gradient-primary rounded-xl p-2">
-                <Bot className="h-5 w-5 text-primary-foreground" />
-              </div>
+              <div className="gradient-primary rounded-xl p-2"><Bot className="h-5 w-5 text-primary-foreground" /></div>
               <div>
                 <h2 className="font-display font-bold text-lg">{roleConfig[selectedRole].label}</h2>
                 <p className="text-xs text-muted-foreground">
-                  Question {Math.min(currentQ + 1, roleConfig[selectedRole].questions.length)} of{" "}
-                  {roleConfig[selectedRole].questions.length}
+                  Question {Math.min(currentQ + 1, roleConfig[selectedRole].questions.length)} of {roleConfig[selectedRole].questions.length}
                 </p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={resetInterview}>
-              <RotateCcw className="h-4 w-4" /> New Interview
-            </Button>
+            <Button variant="ghost" size="sm" onClick={resetInterview}><RotateCcw className="h-4 w-4" /> New</Button>
           </div>
 
-          {/* Progress bar */}
           <div className="w-full bg-muted rounded-full h-1.5 mb-4">
-            <div
-              className="gradient-primary h-1.5 rounded-full transition-all duration-700"
-              style={{
-                width: `${((currentQ + (report ? 1 : 0)) / roleConfig[selectedRole].questions.length) * 100}%`,
-              }}
-            />
+            <div className="gradient-primary h-1.5 rounded-full transition-all duration-700" style={{ width: `${((currentQ + (report ? 1 : 0)) / roleConfig[selectedRole].questions.length) * 100}%` }} />
           </div>
 
-          {/* Chat area */}
+          {vapiCallActive && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-4 p-4 rounded-xl border border-primary/30 bg-primary/5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-success animate-pulse" />
+                <span className="text-sm font-medium">Voice AI call active</span>
+              </div>
+              <Button variant="destructive" size="sm" onClick={() => setVapiCallActive(false)}>
+                <PhoneOff className="h-4 w-4 mr-1" /> End
+              </Button>
+            </motion.div>
+          )}
+
           <div className="flex-1 overflow-y-auto space-y-4 mb-4 max-h-[55vh] pr-2 scroll-smooth">
             <AnimatePresence initial={false}>
               {messages.map((msg) => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex gap-3 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
-                >
+                <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-3 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
                   {msg.sender === "ai" && (
-                    <div className="gradient-primary rounded-full p-2 h-8 w-8 flex items-center justify-center shrink-0 mt-1">
-                      <Bot className="h-4 w-4 text-primary-foreground" />
-                    </div>
+                    <div className="gradient-primary rounded-full p-2 h-8 w-8 flex items-center justify-center shrink-0 mt-1"><Bot className="h-4 w-4 text-primary-foreground" /></div>
                   )}
-                  <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                      msg.sender === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-md"
-                        : "bg-card border border-border rounded-bl-md"
-                    }`}
-                  >
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.sender === "user" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-card border border-border rounded-bl-md"}`}>
                     {msg.text}
                   </div>
                   {msg.sender === "user" && (
-                    <div className="rounded-full bg-muted p-2 h-8 w-8 flex items-center justify-center shrink-0 mt-1">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                    </div>
+                    <div className="rounded-full bg-muted p-2 h-8 w-8 flex items-center justify-center shrink-0 mt-1"><User className="h-4 w-4 text-muted-foreground" /></div>
                   )}
                 </motion.div>
               ))}
@@ -342,9 +357,7 @@ const AIInterview = () => {
 
             {isTyping && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3 items-start">
-                <div className="gradient-primary rounded-full p-2 h-8 w-8 flex items-center justify-center shrink-0">
-                  <Bot className="h-4 w-4 text-primary-foreground" />
-                </div>
+                <div className="gradient-primary rounded-full p-2 h-8 w-8 flex items-center justify-center shrink-0"><Bot className="h-4 w-4 text-primary-foreground" /></div>
                 <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3">
                   <div className="flex gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -354,71 +367,36 @@ const AIInterview = () => {
                 </div>
               </motion.div>
             )}
-
             <div ref={chatEndRef} />
           </div>
 
-          {/* Report */}
           {report && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
               <div className="p-6 rounded-2xl border border-border bg-card shadow-card">
                 <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-2">
-                    <Trophy className="h-5 w-5 text-accent" />
-                    <h3 className="font-display font-bold text-lg">Interview Report</h3>
-                  </div>
-                  <div
-                    className={`text-3xl font-display font-bold ${
-                      report.overallScore >= 80
-                        ? "text-success"
-                        : report.overallScore >= 55
-                        ? "text-accent"
-                        : "text-destructive"
-                    }`}
-                  >
-                    {report.overallScore}%
-                  </div>
+                  <div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-accent" /><h3 className="font-display font-bold text-lg">Interview Report</h3></div>
+                  <div className={`text-3xl font-display font-bold ${report.overallScore >= 80 ? "text-success" : report.overallScore >= 55 ? "text-accent" : "text-destructive"}`}>{report.overallScore}%</div>
                 </div>
-
                 <div className="grid sm:grid-cols-2 gap-4 mb-4">
                   <div className="p-4 rounded-xl bg-success/10 border border-success/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle className="h-4 w-4 text-success" />
-                      <span className="font-medium text-sm">Strengths</span>
-                    </div>
-                    <ul className="space-y-1">
-                      {report.strengths.map((s, i) => (
-                        <li key={i} className="text-sm text-muted-foreground">• {s}</li>
-                      ))}
-                    </ul>
+                    <div className="flex items-center gap-2 mb-2"><CheckCircle className="h-4 w-4 text-success" /><span className="font-medium text-sm">Strengths</span></div>
+                    <ul className="space-y-1">{report.strengths.map((s, i) => <li key={i} className="text-sm text-muted-foreground">• {s}</li>)}</ul>
                   </div>
                   <div className="p-4 rounded-xl bg-accent/10 border border-accent/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertCircle className="h-4 w-4 text-accent" />
-                      <span className="font-medium text-sm">Areas to Improve</span>
-                    </div>
-                    <ul className="space-y-1">
-                      {report.improvements.map((s, i) => (
-                        <li key={i} className="text-sm text-muted-foreground">• {s}</li>
-                      ))}
-                    </ul>
+                    <div className="flex items-center gap-2 mb-2"><AlertCircle className="h-4 w-4 text-accent" /><span className="font-medium text-sm">Areas to Improve</span></div>
+                    <ul className="space-y-1">{report.improvements.map((s, i) => <li key={i} className="text-sm text-muted-foreground">• {s}</li>)}</ul>
                   </div>
                 </div>
-
                 <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex gap-3">
                   <Lightbulb className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                   <p className="text-sm text-muted-foreground">{report.tip}</p>
                 </div>
-
-                <Button variant="hero" size="lg" className="w-full mt-5" onClick={resetInterview}>
-                  <RotateCcw className="h-4 w-4" /> Start New Interview
-                </Button>
+                <Button variant="hero" size="lg" className="w-full mt-5" onClick={resetInterview}><RotateCcw className="h-4 w-4" /> Start New Interview</Button>
               </div>
             </motion.div>
           )}
 
-          {/* Input */}
-          {!report && (
+          {!report && !vapiCallActive && (
             <div className="flex gap-2 items-end">
               <Textarea
                 placeholder={isListening ? "Listening..." : "Type your answer or use the mic..."}
@@ -429,24 +407,11 @@ const AIInterview = () => {
                 className={`min-h-[60px] max-h-[120px] resize-none flex-1 transition-colors ${isListening ? "border-primary ring-2 ring-primary/20" : ""}`}
               />
               {isSupported && (
-                <Button
-                  variant={isListening ? "destructive" : "outline"}
-                  size="icon"
-                  className={`h-[60px] w-[60px] shrink-0 ${isListening ? "animate-pulse" : ""}`}
-                  onClick={toggleListening}
-                  disabled={isTyping}
-                  title={isListening ? "Stop recording" : "Start voice input"}
-                >
+                <Button variant={isListening ? "destructive" : "outline"} size="icon" className={`h-[60px] w-[60px] shrink-0 ${isListening ? "animate-pulse" : ""}`} onClick={toggleListening} disabled={isTyping}>
                   {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                 </Button>
               )}
-              <Button
-                variant="hero"
-                size="icon"
-                className="h-[60px] w-[60px] shrink-0"
-                onClick={() => { stopListening(); handleSend(); }}
-                disabled={!input.trim() || isTyping}
-              >
+              <Button variant="hero" size="icon" className="h-[60px] w-[60px] shrink-0" onClick={() => { stopListening(); handleSend(); }} disabled={!input.trim() || isTyping}>
                 <Send className="h-5 w-5" />
               </Button>
             </div>
