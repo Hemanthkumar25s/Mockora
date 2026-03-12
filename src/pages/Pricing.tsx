@@ -3,38 +3,44 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { CheckCircle, Crown, Zap } from "lucide-react";
+import { CheckCircle, Crown, Zap, X } from "lucide-react";
 
 const plans = [
   {
     name: "Free",
-    price: "$0",
-    period: "forever",
-    desc: "Perfect for getting started",
-    features: ["5 interviews per day", "Basic HR questions", "Limited coding questions", "Community support", "Basic feedback"],
+    price: "₹0",
+    period: "/month",
+    desc: "Get started with basic practice",
+    features: [
+      { text: "2 interviews per month", included: true },
+      { text: "Basic HR questions", included: true },
+      { text: "Limited coding questions", included: true },
+      { text: "Community support", included: true },
+      { text: "Advanced AI feedback", included: false },
+      { text: "Interview analytics", included: false },
+      { text: "Voice AI interviews", included: false },
+    ],
     cta: "Get Started Free",
     variant: "hero-outline" as const,
     popular: false,
   },
   {
-    name: "Premium Monthly",
-    price: "$19",
+    name: "Pro",
+    price: "₹499",
     period: "/month",
-    desc: "For serious interview preparation",
-    features: ["Unlimited interviews", "Company-specific questions", "Advanced coding challenges", "Detailed AI feedback", "Analytics dashboard", "Priority support", "System design practice"],
-    cta: "Start Premium",
+    desc: "Unlimited access for serious prep",
+    features: [
+      { text: "Unlimited interviews", included: true },
+      { text: "All question categories", included: true },
+      { text: "Advanced AI feedback", included: true },
+      { text: "Interview analytics", included: true },
+      { text: "Voice AI interviews (Vapi)", included: true },
+      { text: "Priority support", included: true },
+      { text: "Detailed score breakdown", included: true },
+    ],
+    cta: "Upgrade to Pro",
     variant: "hero" as const,
     popular: true,
-  },
-  {
-    name: "Premium Yearly",
-    price: "$149",
-    period: "/year",
-    desc: "Best value — save 35%",
-    features: ["Everything in Monthly", "Save 35% annually", "Early access to features", "1-on-1 coaching session", "Resume review", "Exclusive community", "Interview guarantee"],
-    cta: "Get Best Value",
-    variant: "hero-outline" as const,
-    popular: false,
   },
 ];
 
@@ -50,10 +56,10 @@ const Pricing = () => (
           <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">
             Invest in Your <span className="text-gradient">Career</span>
           </h1>
-          <p className="text-muted-foreground text-lg">Pay with cryptocurrency via Cryptomus. Cancel anytime.</p>
+          <p className="text-muted-foreground text-lg">Choose the plan that fits your preparation needs.</p>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
           {plans.map((plan, i) => (
             <motion.div
               key={plan.name}
@@ -75,9 +81,13 @@ const Pricing = () => (
               </div>
               <ul className="space-y-3 mb-8">
                 {plan.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-success shrink-0" />
-                    {f}
+                  <li key={f.text} className="flex items-center gap-2 text-sm">
+                    {f.included ? (
+                      <CheckCircle className="h-4 w-4 text-success shrink-0" />
+                    ) : (
+                      <X className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                    )}
+                    <span className={f.included ? "" : "text-muted-foreground/50"}>{f.text}</span>
                   </li>
                 ))}
               </ul>
@@ -88,8 +98,9 @@ const Pricing = () => (
           ))}
         </div>
 
+        {/* Comparison note */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="text-center mt-12 text-sm text-muted-foreground">
-          🔒 Secure payments powered by Cryptomus cryptocurrency gateway
+          All prices in Indian Rupees (₹ INR). Cancel anytime.
         </motion.div>
       </div>
     </div>

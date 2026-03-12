@@ -14,7 +14,134 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      interview_sessions: {
+        Row: {
+          completed_at: string | null
+          id: string
+          improvements: string[] | null
+          interview_type: string
+          overall_score: number | null
+          started_at: string
+          strengths: string[] | null
+          tip: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          id?: string
+          improvements?: string[] | null
+          interview_type: string
+          overall_score?: number | null
+          started_at?: string
+          strengths?: string[] | null
+          tip?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          id?: string
+          improvements?: string[] | null
+          interview_type?: string
+          overall_score?: number | null
+          started_at?: string
+          strengths?: string[] | null
+          tip?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscription_plans: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          plan_name: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          plan_name?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          plan_name?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_responses: {
+        Row: {
+          ai_feedback: string | null
+          answer_text: string
+          created_at: string
+          id: string
+          question_index: number
+          question_text: string
+          score: number | null
+          session_id: string
+        }
+        Insert: {
+          ai_feedback?: string | null
+          answer_text: string
+          created_at?: string
+          id?: string
+          question_index: number
+          question_text: string
+          score?: number | null
+          session_id: string
+        }
+        Update: {
+          ai_feedback?: string | null
+          answer_text?: string
+          created_at?: string
+          id?: string
+          question_index?: number
+          question_text?: string
+          score?: number | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "interview_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
