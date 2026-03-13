@@ -84,12 +84,20 @@ const Navbar = () => {
                 </Link>
               ))}
               <div className="flex gap-3 pt-2">
-                <Button variant="ghost" size="sm" asChild className="flex-1">
-                  <Link to="/login">Log in</Link>
-                </Button>
-                <Button variant="hero" size="sm" asChild className="flex-1">
-                  <Link to="/signup">Get Started</Link>
-                </Button>
+                {!loading && user ? (
+                  <Button variant="hero" size="sm" asChild className="flex-1">
+                    <Link to="/dashboard">Dashboard</Link>
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="ghost" size="sm" asChild className="flex-1">
+                      <Link to="/login">Log in</Link>
+                    </Button>
+                    <Button variant="hero" size="sm" asChild className="flex-1">
+                      <Link to="/signup">Get Started</Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>
