@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 serve(async (req) => {
@@ -18,7 +18,9 @@ serve(async (req) => {
 
     const { assistantConfig } = await req.json();
 
-    // Create a Vapi web call
+    // Return the API key and assistant config so the client SDK can start the call
+    // The Vapi Web SDK handles the call directly using the public key or a temporary token
+    // We create a transient assistant configuration for the call
     const response = await fetch('https://api.vapi.ai/call/web', {
       method: 'POST',
       headers: {
@@ -34,8 +36,8 @@ serve(async (req) => {
             messages: [
               {
                 role: "system",
-                content: assistantConfig?.systemPrompt || 
-                  "You are a professional interviewer. Ask interview questions one by one, wait for the candidate's response, provide brief feedback, then move to the next question. Be encouraging but honest. After all questions, give a summary score out of 100 and key feedback points.",
+                content: assistantConfig?.systemPrompt ||
+                  "You are a professional interviewer conducting a one-on-one voice interview. Ask interview questions one by one, wait for the candidate's response, provide brief encouraging feedback, then move to the next question. Be natural and conversational. After all questions, give a summary score out of 100 and key feedback points.",
               },
             ],
           },
