@@ -14,6 +14,7 @@ const navLinks = [
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const { user, loading } = useAuth();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-strong">
