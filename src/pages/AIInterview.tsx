@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import Vapi from "@vapi-ai/web";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useAuth } from "@/hooks/use-auth";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,10 +9,12 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Bot, User, Send, RotateCcw, Mic, MicOff, CheckCircle, AlertCircle, Lightbulb, Trophy, ArrowRight, Phone, PhoneOff,
+  Bot, User, Send, RotateCcw, Mic, MicOff, CheckCircle, AlertCircle,
+  Lightbulb, Trophy, Phone, PhoneOff, Volume2,
 } from "lucide-react";
 
 type Role = "hr" | "technical" | "behavioral";
+type InterviewMode = "text" | "voice";
 
 interface Message {
   id: number;
@@ -95,6 +98,7 @@ const generateReport = (scores: number[]): FinalReport => {
 const AIInterview = () => {
   const { user } = useAuth();
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [interviewMode, setInterviewMode] = useState<InterviewMode | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [currentQ, setCurrentQ] = useState(0);
@@ -102,8 +106,15 @@ const AIInterview = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [report, setReport] = useState<FinalReport | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+
+  // Voice (Vapi) state
   const [vapiCallActive, setVapiCallActive] = useState(false);
   const [vapiLoading, setVapiLoading] = useState(false);
+  const [vapiStatus, setVapiStatus] = useState<string>("idle");
+  const [vapiTranscripts, setVapiTranscripts] = useState<{ role: string; text: string }[]>([]);
+  const [vapiVolume, setVapiVolume] = useState(0);
+  const vapiRef = useRef<Vapi | null>(null);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const handleVoiceTranscript = useCallback((text: string) => {
@@ -114,7 +125,17 @@ const AIInterview = () => {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
+  }, [messages, isTyping, vapiTranscripts]);
+
+  // Cleanup Vapi on unmount
+  useEffect(() => {
+    return () => {
+      if (vapiRef.current) {
+        vapiRef.current.stop();
+        vapiRef.current = null;
+      }
+    };
+  }, []);
 
   const createSession = async (role: Role) => {
     if (!user) return null;
@@ -150,8 +171,10 @@ const AIInterview = () => {
       .eq("id", sid);
   };
 
-  const startInterview = async (role: Role) => {
+  /* ───────── TEXT CHAT ───────── */
+  const startTextInterview = async (role: Role) => {
     setSelectedRole(role);
+    setInterviewMode("text");
     const config = roleConfig[role];
     const greeting: Message = { id: 1, sender: "ai", text: config.greeting, timestamp: new Date() };
     setMessages([greeting]);
@@ -164,30 +187,6 @@ const AIInterview = () => {
       setMessages((prev) => [...prev, { id: 2, sender: "ai", text: config.questions[0], timestamp: new Date() }]);
       setIsTyping(false);
     }, 1500);
-  };
-
-  const startVapiCall = async (role: Role) => {
-    setVapiLoading(true);
-    try {
-      const config = roleConfig[role];
-      const { data, error } = await supabase.functions.invoke("vapi-session", {
-        body: {
-          assistantConfig: {
-            systemPrompt: `You are a professional ${config.label} interviewer. Ask these questions one by one: ${config.questions.join(" | ")}. Wait for the candidate's response after each question. Provide brief feedback then move on. At the end, give an overall score out of 100.`,
-            firstMessage: config.greeting,
-          },
-        },
-      });
-      if (error) throw error;
-      if (data?.webCallUrl) {
-        window.open(data.webCallUrl, "_blank", "width=400,height=600");
-        setVapiCallActive(true);
-      }
-    } catch (err) {
-      console.error("Vapi error:", err);
-    } finally {
-      setVapiLoading(false);
-    }
   };
 
   const handleSend = async () => {
@@ -207,7 +206,6 @@ const AIInterview = () => {
     const nextIndex = currentQ + 1;
     const followUp = generateFollowUp(score);
 
-    // Save to DB
     if (sessionId) {
       saveResponse(sessionId, currentQ, config.questions[currentQ], answerText, score, followUp);
     }
@@ -232,8 +230,108 @@ const AIInterview = () => {
     }, 1000 + Math.random() * 800);
   };
 
+  /* ───────── VOICE AI (VAPI) ───────── */
+  const startVoiceInterview = async (role: Role) => {
+    setSelectedRole(role);
+    setInterviewMode("voice");
+    setVapiLoading(true);
+    setVapiTranscripts([]);
+    setVapiStatus("connecting");
+
+    const sid = await createSession(role);
+    if (sid) setSessionId(sid);
+
+    try {
+      const config = roleConfig[role];
+
+      // Call our edge function to create a web call
+      const { data, error } = await supabase.functions.invoke("vapi-session", {
+        body: {
+          assistantConfig: {
+            systemPrompt: `You are a professional ${config.label} interviewer conducting a real-time voice interview. Ask these questions one by one, waiting for the candidate to fully respond before moving on:\n\n${config.questions.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\nAfter each answer, give brief encouraging feedback (1-2 sentences). After all questions are done, provide:\n- An overall score out of 100\n- Top 3 strengths\n- Top 3 areas for improvement\n- One actionable tip\n\nBe warm, professional, and conversational. Do NOT rush through questions.`,
+            firstMessage: config.greeting + " Are you ready to start?",
+            endCallMessage: "Thank you for the interview! You did great. Good luck!",
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      // The edge function returns web call data with webCallUrl
+      if (data?.webCallUrl) {
+        // Initialize Vapi client and join the web call
+        const vapi = new Vapi(data.webCallUrl);
+        vapiRef.current = vapi;
+
+        vapi.on("call-start", () => {
+          setVapiCallActive(true);
+          setVapiLoading(false);
+          setVapiStatus("active");
+        });
+
+        vapi.on("call-end", () => {
+          setVapiCallActive(false);
+          setVapiStatus("ended");
+          // Save session as completed
+          if (sid) {
+            const finalReport: FinalReport = {
+              overallScore: 75,
+              strengths: ["Completed voice interview", "Real-time conversation", "Verbal communication"],
+              improvements: ["Review the transcript for areas to improve", "Practice speaking clearly"],
+              tip: "Voice interviews test your verbal fluency — practice speaking your answers out loud daily.",
+            };
+            setReport(finalReport);
+            completeSession(sid, finalReport);
+          }
+        });
+
+        vapi.on("message", (msg: any) => {
+          if (msg.type === "transcript") {
+            setVapiTranscripts((prev) => [
+              ...prev,
+              { role: msg.role === "assistant" ? "ai" : "user", text: msg.transcript },
+            ]);
+          }
+        });
+
+        vapi.on("volume-level", (level: number) => {
+          setVapiVolume(level);
+        });
+
+        vapi.on("error", (err: any) => {
+          console.error("Vapi error:", err);
+          setVapiLoading(false);
+          setVapiStatus("error");
+        });
+
+        // Start the call
+        vapi.start();
+      } else {
+        throw new Error("No webCallUrl returned from server");
+      }
+    } catch (err) {
+      console.error("Vapi error:", err);
+      setVapiLoading(false);
+      setVapiStatus("error");
+    }
+  };
+
+  const endVapiCall = () => {
+    if (vapiRef.current) {
+      vapiRef.current.stop();
+      vapiRef.current = null;
+    }
+    setVapiCallActive(false);
+    setVapiStatus("ended");
+  };
+
   const resetInterview = () => {
+    if (vapiRef.current) {
+      vapiRef.current.stop();
+      vapiRef.current = null;
+    }
     setSelectedRole(null);
+    setInterviewMode(null);
     setMessages([]);
     setInput("");
     setCurrentQ(0);
@@ -242,12 +340,17 @@ const AIInterview = () => {
     setIsTyping(false);
     setSessionId(null);
     setVapiCallActive(false);
+    setVapiLoading(false);
+    setVapiStatus("idle");
+    setVapiTranscripts([]);
+    setVapiVolume(0);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
+  /* ───────── ROLE SELECTION SCREEN ───────── */
   if (!selectedRole) {
     return (
       <div className="min-h-screen bg-background">
@@ -260,7 +363,7 @@ const AIInterview = () => {
               </div>
               <h1 className="text-3xl md:text-4xl font-display font-bold mb-3">AI 1-on-1 Interview</h1>
               <p className="text-muted-foreground max-w-lg mx-auto">
-                Choose text chat or voice AI interview. Select your type to begin.
+                Choose <strong>Text Chat</strong> to type your answers, or <strong>Voice AI</strong> for a real-time spoken interview with an AI interviewer.
               </p>
             </motion.div>
             <div className="grid sm:grid-cols-3 gap-5">
@@ -278,17 +381,14 @@ const AIInterview = () => {
                   <h3 className="font-display font-semibold text-lg mb-2">{config.label}</h3>
                   <p className="text-sm text-muted-foreground mb-4">{config.questions.length} questions • ~15 min</p>
                   <div className="flex flex-col gap-2">
-                    <Button variant="hero" size="sm" className="w-full" onClick={() => startInterview(key)}>
+                    <Button variant="hero" size="sm" className="w-full" onClick={() => startTextInterview(key)}>
                       <Send className="h-4 w-4 mr-1" /> Text Chat
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setSelectedRole(key);
-                        startVapiCall(key);
-                      }}
+                      className="w-full border-primary/30 hover:bg-primary/10"
+                      onClick={() => startVoiceInterview(key)}
                       disabled={vapiLoading}
                     >
                       <Phone className="h-4 w-4 mr-1" /> {vapiLoading ? "Connecting..." : "Voice AI"}
@@ -304,6 +404,148 @@ const AIInterview = () => {
     );
   }
 
+  /* ───────── VOICE INTERVIEW SCREEN ───────── */
+  if (interviewMode === "voice") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <div className="flex-1 pt-20 pb-4 flex flex-col">
+          <div className="container mx-auto px-4 max-w-3xl flex-1 flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="gradient-primary rounded-xl p-2"><Bot className="h-5 w-5 text-primary-foreground" /></div>
+                <div>
+                  <h2 className="font-display font-bold text-lg">{roleConfig[selectedRole].label} — Voice</h2>
+                  <p className="text-xs text-muted-foreground">Real-time voice interview with AI</p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={resetInterview}><RotateCcw className="h-4 w-4 mr-1" /> New</Button>
+            </div>
+
+            {/* Voice Call UI */}
+            <div className="flex-1 flex flex-col items-center justify-center">
+              {vapiLoading && (
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-6">
+                  <div className="relative mx-auto w-32 h-32">
+                    <div className="absolute inset-0 gradient-primary rounded-full animate-pulse opacity-30" />
+                    <div className="absolute inset-4 gradient-primary rounded-full animate-pulse opacity-50" style={{ animationDelay: "300ms" }} />
+                    <div className="absolute inset-8 gradient-primary rounded-full flex items-center justify-center">
+                      <Phone className="h-8 w-8 text-primary-foreground" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="font-display font-bold text-xl">Connecting...</p>
+                    <p className="text-sm text-muted-foreground mt-1">Setting up your voice interview</p>
+                  </div>
+                </motion.div>
+              )}
+
+              {vapiCallActive && (
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-6 w-full">
+                  {/* Animated voice visualizer */}
+                  <div className="relative mx-auto w-40 h-40">
+                    <div
+                      className="absolute inset-0 gradient-primary rounded-full opacity-20 transition-transform duration-150"
+                      style={{ transform: `scale(${1 + vapiVolume * 0.5})` }}
+                    />
+                    <div
+                      className="absolute inset-4 gradient-primary rounded-full opacity-40 transition-transform duration-150"
+                      style={{ transform: `scale(${1 + vapiVolume * 0.3})` }}
+                    />
+                    <div className="absolute inset-8 gradient-primary rounded-full flex items-center justify-center">
+                      <Volume2 className="h-10 w-10 text-primary-foreground" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      <div className="w-2.5 h-2.5 rounded-full bg-success animate-pulse" />
+                      <p className="font-display font-bold text-xl">Interview in Progress</p>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Speak naturally — the AI is listening and will respond</p>
+                  </div>
+
+                  {/* Live transcript */}
+                  <div className="w-full max-h-[40vh] overflow-y-auto space-y-3 mt-6 px-2">
+                    {vapiTranscripts.map((t, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`flex gap-3 ${t.role === "user" ? "justify-end" : "justify-start"}`}
+                      >
+                        {t.role === "ai" && (
+                          <div className="gradient-primary rounded-full p-1.5 h-7 w-7 flex items-center justify-center shrink-0 mt-0.5">
+                            <Bot className="h-3.5 w-3.5 text-primary-foreground" />
+                          </div>
+                        )}
+                        <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                          t.role === "user"
+                            ? "bg-primary text-primary-foreground rounded-br-md"
+                            : "bg-card border border-border rounded-bl-md"
+                        }`}>
+                          {t.text}
+                        </div>
+                        {t.role === "user" && (
+                          <div className="rounded-full bg-muted p-1.5 h-7 w-7 flex items-center justify-center shrink-0 mt-0.5">
+                            <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          </div>
+                        )}
+                      </motion.div>
+                    ))}
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  {/* End call button */}
+                  <Button variant="destructive" size="lg" className="mt-4" onClick={endVapiCall}>
+                    <PhoneOff className="h-5 w-5 mr-2" /> End Interview
+                  </Button>
+                </motion.div>
+              )}
+
+              {vapiStatus === "error" && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-4">
+                  <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
+                  <p className="font-display font-bold text-lg">Connection Failed</p>
+                  <p className="text-sm text-muted-foreground">Could not connect to the voice AI. Please try again.</p>
+                  <Button variant="hero" onClick={resetInterview}><RotateCcw className="h-4 w-4 mr-1" /> Try Again</Button>
+                </motion.div>
+              )}
+
+              {vapiStatus === "ended" && report && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full">
+                  <div className="p-6 rounded-2xl border border-border bg-card shadow-card">
+                    <div className="flex items-center justify-between mb-5">
+                      <div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-accent" /><h3 className="font-display font-bold text-lg">Interview Report</h3></div>
+                      <div className={`text-3xl font-display font-bold ${report.overallScore >= 80 ? "text-success" : report.overallScore >= 55 ? "text-accent" : "text-destructive"}`}>{report.overallScore}%</div>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                      <div className="p-4 rounded-xl bg-success/10 border border-success/20">
+                        <div className="flex items-center gap-2 mb-2"><CheckCircle className="h-4 w-4 text-success" /><span className="font-medium text-sm">Strengths</span></div>
+                        <ul className="space-y-1">{report.strengths.map((s, i) => <li key={i} className="text-sm text-muted-foreground">• {s}</li>)}</ul>
+                      </div>
+                      <div className="p-4 rounded-xl bg-accent/10 border border-accent/20">
+                        <div className="flex items-center gap-2 mb-2"><AlertCircle className="h-4 w-4 text-accent" /><span className="font-medium text-sm">Areas to Improve</span></div>
+                        <ul className="space-y-1">{report.improvements.map((s, i) => <li key={i} className="text-sm text-muted-foreground">• {s}</li>)}</ul>
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex gap-3">
+                      <Lightbulb className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <p className="text-sm text-muted-foreground">{report.tip}</p>
+                    </div>
+                    <Button variant="hero" size="lg" className="w-full mt-5" onClick={resetInterview}><RotateCcw className="h-4 w-4" /> Start New Interview</Button>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ───────── TEXT CHAT SCREEN ───────── */
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
@@ -325,18 +567,6 @@ const AIInterview = () => {
           <div className="w-full bg-muted rounded-full h-1.5 mb-4">
             <div className="gradient-primary h-1.5 rounded-full transition-all duration-700" style={{ width: `${((currentQ + (report ? 1 : 0)) / roleConfig[selectedRole].questions.length) * 100}%` }} />
           </div>
-
-          {vapiCallActive && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-4 p-4 rounded-xl border border-primary/30 bg-primary/5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-success animate-pulse" />
-                <span className="text-sm font-medium">Voice AI call active</span>
-              </div>
-              <Button variant="destructive" size="sm" onClick={() => setVapiCallActive(false)}>
-                <PhoneOff className="h-4 w-4 mr-1" /> End
-              </Button>
-            </motion.div>
-          )}
 
           <div className="flex-1 overflow-y-auto space-y-4 mb-4 max-h-[55vh] pr-2 scroll-smooth">
             <AnimatePresence initial={false}>
@@ -396,7 +626,7 @@ const AIInterview = () => {
             </motion.div>
           )}
 
-          {!report && !vapiCallActive && (
+          {!report && (
             <div className="flex gap-2 items-end">
               <Textarea
                 placeholder={isListening ? "Listening..." : "Type your answer or use the mic..."}
